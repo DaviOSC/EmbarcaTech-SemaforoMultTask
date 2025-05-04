@@ -15,6 +15,7 @@
 #include "pico/bootrom.h"
 
 void vDisplayTask() {
+    // Inicializa o display OLED
     i2c_init(I2C_PORT, 400 * 1000);
     gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
     gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
@@ -25,6 +26,7 @@ void vDisplayTask() {
     ssd1306_init(&ssd, 128, 64, false, endereco, I2C_PORT);
     ssd1306_config(&ssd);
 
+    // Variáveis para armazenar informações do semáforo
     char color[16];
     char mode[16];
     char message[32];
@@ -71,21 +73,22 @@ void vDisplayTask() {
         }
 
         // Exibe as informações no display
-        ssd1306_draw_string(&ssd, mode, 10, 6);        // Exibe a color
-        ssd1306_draw_string(&ssd, color, 10, 16);     // Exibe o modo
+        ssd1306_draw_string(&ssd, mode, 10, 6);        // Exibe o modo
+        ssd1306_draw_string(&ssd, color, 10, 16);     // Exibe a cor
         ssd1306_draw_string(&ssd, "Semaforo", 33, 28); // Exibe o título
         ssd1306_draw_string(&ssd, message, 10, 41); // Exibe a mensagem
-        ssd1306_draw_string(&ssd, message2, 10, 52); // Exibe a mensagem
+        ssd1306_draw_string(&ssd, message2, 10, 52); // Exibe a mensagem2
 
         // Atualiza o display
         ssd1306_send_data(&ssd);
 
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Atualiza a cada 1 segundo
+        vTaskDelay(pdMS_TO_TICKS(500)); // Atualiza a cada 0.5 segundo
     }
 }
 
 void vButtonTask()
 {
+    // Inicializa os pinos dos botões
     gpio_init(BUTTON_PIN_A);
     gpio_set_dir(BUTTON_PIN_A, GPIO_IN);
     gpio_pull_up(BUTTON_PIN_A);
@@ -94,15 +97,16 @@ void vButtonTask()
     gpio_pull_up(BUTTON_PIN_B);
     while(true)
     {
+        // Verifica o estado dos botões
+        // Se o botão A for pressionado, alterna entre os modos normal e noturno
         if(!gpio_get(BUTTON_PIN_A))
         {
             isNormalMode = !isNormalMode;
-            vTaskDelay(pdMS_TO_TICKS(500)); 
+            vTaskDelay(pdMS_TO_TICKS(500)); // Debounce de 500ms
         }
+        // Se o botão B for pressionado, reinicia o modo BOOTSEL
         if(!gpio_get(BUTTON_PIN_B))
         {
-            // Se o botão B for pressionado, reinicia o modo BOOTSEL
-            printf("BOOTSEL\n");
             reset_usb_boot(0, 0);
         }
         vTaskDelay(pdMS_TO_TICKS(50)); 
@@ -119,65 +123,95 @@ void vBuzzerTask() {
                 beep(BUZZER_PIN, 1000); // 1 segundo
                 vTaskDelay(pdMS_TO_TICKS(LIGHT_TIME - 1000)); // Sincroniza com o tempo restante
                 break;
-
             case SEMAFORO_AMARELO:
                 // Beeps curtos e rápidos para amarelo
-                for (int i = 0; i < 5; i++) {
-                    beep(BUZZER_PIN, 100); // 100ms
-                    vTaskDelay(pdMS_TO_TICKS(100)); // Pausa de 100ms
-                }
+                beep(BUZZER_PIN, 100); // 100ms
+                vTaskDelay(pdMS_TO_TICKS(100)); // Pausa de 100ms
                 break;
-
             case SEMAFORO_VERMELHO:
-                // Beep contínuo curto para vermelho
+                // Beeps contínuo  para vermelho
                 beep(BUZZER_PIN, 500); // 500ms
-                vTaskDelay(pdMS_TO_TICKS(LIGHT_TIME - 500)); // Sincroniza com o tempo restante
+                vTaskDelay(pdMS_TO_TICKS(1500)); //Pausa de 1,5 segundos
                 break;
-
             case SEMAFORO_NOTURNO:
                 // Beep lento no modo noturno
-                beep(BUZZER_PIN, 500); // 500ms
-                vTaskDelay(pdMS_TO_TICKS(1500)); // 1.5s de pausa
+                beep(BUZZER_PIN, 300); // 300ms
+                vTaskDelay(pdMS_TO_TICKS(2000)); // Pausa de 2 segundos
                 break;
         }
     }
 }
 
 void vLedTask() {
+    // Inicializa os pinos dos LEDs
     gpio_init(LED_PIN_GREEN);
     gpio_init(LED_PIN_RED);
     gpio_set_dir(LED_PIN_GREEN, GPIO_OUT);
     gpio_set_dir(LED_PIN_RED, GPIO_OUT);
 
     while (true) {
-        if (isNormalMode)
-        {
-            // Verde
-            estadoAtual = SEMAFORO_VERDE;
-            gpio_put(LED_PIN_GREEN, true);
-            gpio_put(LED_PIN_RED, false);
-            vTaskDelay(pdMS_TO_TICKS(LIGHT_TIME)); 
-            // Amarelo (Verde + Vermelho)
-            estadoAtual = SEMAFORO_AMARELO;
-            gpio_put(LED_PIN_GREEN, true);
-            gpio_put(LED_PIN_RED, true);
-            vTaskDelay(pdMS_TO_TICKS(LIGHT_TIME));
-
-            // Vermelho
-            estadoAtual = SEMAFORO_VERMELHO;
-            gpio_put(LED_PIN_GREEN, false);
-            gpio_put(LED_PIN_RED, true);
-            vTaskDelay(pdMS_TO_TICKS(LIGHT_TIME));
-        }
-        else
-        {
-            estadoAtual = SEMAFORO_NOTURNO;
-            gpio_put(LED_PIN_GREEN, true);
-            gpio_put(LED_PIN_RED, true);
-            vTaskDelay(pdMS_TO_TICKS(500));
-            gpio_put(LED_PIN_GREEN, false);
-            gpio_put(LED_PIN_RED, false);
-            vTaskDelay(pdMS_TO_TICKS(1500));
+        switch (estadoAtual) {
+            case SEMAFORO_VERDE:
+                // Verde
+                gpio_put(LED_PIN_GREEN, true);
+                gpio_put(LED_PIN_RED, false);
+                vTaskDelay(pdMS_TO_TICKS(LIGHT_TIME)); 
+    
+                // Transição para Amarelo
+                if (isNormalMode) {
+                    estadoAtual = SEMAFORO_AMARELO;
+                } 
+                else
+                {
+                    estadoAtual = SEMAFORO_NOTURNO;
+                }
+                
+                break;
+    
+            case SEMAFORO_AMARELO:
+                // Amarelo (Verde + Vermelho)
+                gpio_put(LED_PIN_GREEN, true);
+                gpio_put(LED_PIN_RED, true);
+                vTaskDelay(pdMS_TO_TICKS(LIGHT_TIME));
+    
+                // Transição para Vermelho
+                if (isNormalMode) {
+                    estadoAtual = SEMAFORO_VERMELHO;
+                } 
+                else
+                {
+                    estadoAtual = SEMAFORO_NOTURNO;
+                }
+                break;
+    
+            case SEMAFORO_VERMELHO:
+                // Vermelho
+                gpio_put(LED_PIN_GREEN, false);
+                gpio_put(LED_PIN_RED, true);
+                vTaskDelay(pdMS_TO_TICKS(LIGHT_TIME));
+                // Transição para Verde
+                if (isNormalMode) {
+                    estadoAtual = SEMAFORO_VERDE;
+                } 
+                else
+                {
+                    estadoAtual = SEMAFORO_NOTURNO;
+                }
+                break;
+    
+            case SEMAFORO_NOTURNO:
+                // Modo Noturno (Amarelo piscando)
+                gpio_put(LED_PIN_GREEN, true);
+                gpio_put(LED_PIN_RED, true);
+                vTaskDelay(pdMS_TO_TICKS(300));
+                gpio_put(LED_PIN_GREEN, false);
+                gpio_put(LED_PIN_RED, false);
+                vTaskDelay(pdMS_TO_TICKS(2000));
+                if (isNormalMode) {
+                    estadoAtual = SEMAFORO_VERDE;
+                }
+                // Permanece no modo noturno até alteração pelo botão
+                break; 
         }
     }
 }
@@ -190,6 +224,7 @@ void vMatrixTask() {
     pio_matrix_program_init(pio, sm, offset, OUT_PIN);
 
     while (true) {
+        // Atualiza o padrão de LEDs com base no estado atual
         switch (estadoAtual) {
             case SEMAFORO_VERDE:
                 pio_drawn(SEMAFORO_VERDE_PATTERN, 0, pio, sm);
@@ -207,7 +242,7 @@ void vMatrixTask() {
                 pio_drawn(SEMAFORO_NOTURNO_PATTERN, 0, pio, sm);
                 break;
         }
-        vTaskDelay(pdMS_TO_TICKS(10)); // Atualiza o padrão a cada 100ms
+        vTaskDelay(pdMS_TO_TICKS(100)); // Atualiza o padrão a cada 100ms
     }
 }
 
@@ -215,12 +250,13 @@ int main()
 {
     stdio_init_all();
 
+    //Cria as tarefas
     xTaskCreate(vButtonTask, "Button Task", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
     xTaskCreate(vLedTask, "LED Task", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
     xTaskCreate(vBuzzerTask, "Buzzer Task", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
     xTaskCreate(vDisplayTask, "Display Task", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
     xTaskCreate(vMatrixTask, "Matrix Task", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
 
-    vTaskStartScheduler();
+    vTaskStartScheduler(); // Inicia o escalonador FreeRTOS
     panic_unsupported();
 }

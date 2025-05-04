@@ -8,12 +8,13 @@
 #define LED_PIN_RED 13
 #define BUZZER_PIN 21
 #define BUTTON_PIN_A 5
-#define LIGHT_TIME 3000
-#define NUM_PIXELS 25
-#define OUT_PIN 7
 #define BUTTON_PIN_B 6
+#define OUT_PIN 7
 
-#define BUZZER_FREQUENCY 4000
+#define NUM_PIXELS 25
+
+#define BUZZER_FREQUENCY 4000/// Frequência do buzzer em Hz
+#define LIGHT_TIME 4000 // Tempo de cada estado do semáforo em milissegundos
 
 bool isNormalMode = true; // Flag do modo normal
 
@@ -26,7 +27,7 @@ typedef enum {
 
 volatile SemaforoEstado estadoAtual = SEMAFORO_VERDE; // Estado inicial do semáforo
 
-
+// Definições dos padrões de cores para a Matriz de LEDs
 double SEMAFORO_VERDE_PATTERN[NUM_PIXELS][3] = {
     {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 0, 0},
     {0, 1, 0}, {0, 0, 0}, {0, 1, 0}, {0, 0, 0}, {0, 0, 0},
@@ -34,6 +35,7 @@ double SEMAFORO_VERDE_PATTERN[NUM_PIXELS][3] = {
     {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 1, 0},
     {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0},
 };
+
 double SEMAFORO_AMARELO_PATTERN[NUM_PIXELS][3] = {
     {1, 1, 0}, {0, 0, 0}, {1, 1, 0}, {0, 0, 0}, {1, 1, 0},
     {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0},
@@ -58,6 +60,7 @@ double SEMAFORO_NOTURNO_PATTERN[NUM_PIXELS][3] = {
     {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}
 };
 
+// Função para inicializar o buzzer
 void pwm_init_buzzer(uint pin) {
     // Configurar o pino como saída de PWM
     gpio_set_function(pin, GPIO_FUNC_PWM);
